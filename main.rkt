@@ -1,6 +1,7 @@
 #lang racket/base
 
-(provide try catch finally)
+(provide try catch finally
+         try-with try-with*)
 
 (require racket/match (for-syntax syntax/parse racket/base))
 
@@ -52,3 +53,28 @@
                [catch.binding catch.body ...] ...
                [_ (raise e)]))])
          body ...)]))
+
+(define-syntax (try-with stx)
+  (syntax-parse stx
+    [(_ ([name:id val:expr] ...)
+        body:body-expr ...+)
+     #'(let ([cust (make-custodian)])
+         (try
+          (define-values (name ...)
+            (parameterize ([current-custodian cust])
+              (values val ...)))
+          body ...
+          (finally (custodian-shutdown-all cust))))]))
+
+(define-syntax (try-with* stx)
+  (syntax-parse stx
+    [(_ ([name:id val:expr] ...)
+        body:body-expr ...+)
+     #'(let ([cust (make-custodian)])
+         (try
+          (define-values (name ...)
+            (parameterize ([current-custodian cust])
+              (define name val) ...
+              (values name ...)))
+          body ...
+          (finally (custodian-shutdown-all cust))))]))
